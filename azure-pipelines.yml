@@ -2,19 +2,32 @@ trigger:
 - main
 
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: 'windows-latest'
 
 steps:
-- task: CopyFiles@2
+- task: DownloadBuildArtifacts@0
   inputs:
-    SourceFolder: '$(Build.SourcesDirectory)/source-folder'
-    Contents: '**'
-    TargetFolder: '\\\\store1\\C$\\destination-folder'
-    
-- task: CopyFiles@2
-  inputs:
-    SourceFolder: '$(Build.SourcesDirectory)/source-folder'
-    Contents: '**'
-    TargetFolder: '\\\\store2\\C$\\destination-folder'
+    buildType: 'specific'
+    project: 'Project1'  # Tên dự án của bạn
+    definition: 'DeploysRarFile'  # Thay thế với tên định nghĩa build của bạn
+    buildVersionToDownload: 'latest'
+    downloadType: 'single'
+    artifactName: 'drop'  # Tên artifact bạn đã tạo
+    downloadPath: '$(Pipeline.Workspace)'
 
-# Thêm các bước tương tự cho các cửa hàng khác
+- task: ExtractFiles@1
+  inputs:
+    archiveFilePatterns: '$(Pipeline.Workspace)/drop/deploy.rar'
+    destinationFolder: '$(Pipeline.Workspace)/extracted'
+    cleanDestinationFolder: true
+
+- powershell: |
+    # Đảm bảo rằng thư mục đích đã tồn tại
+    $destinationPath = "D:\deploy"
+    if (-not (Test-Path $destinationPath)) {
+        New-Item -ItemType Directory -Path $destinationPath
+    }
+
+    # Sao chép các file đã giải nén đến thư mục đích
+    Copy-Item -Path "$(Pipeline.Workspace)/extracted/*" -Destination $destinationPath -Recurse
+  displayName: 'Deploy Files'
